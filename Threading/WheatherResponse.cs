@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -10,7 +11,7 @@ namespace Threading
         public string text { get; set; }      
         public string response_type { get; set; }
         public List<Attachments> attachments { get; set; }
-        public string feePercent { get; set; }
+        public decimal feePercent { get; set; }
 
         public Result()
         {
@@ -19,34 +20,104 @@ namespace Threading
 
         public Result(string hostid, XMLBilling billing)
         {
-            feePercent = billing.FeePercent.ToString();
+            feePercent = (decimal)billing.FeePercent;
             text = "*Биллинг схема хоста № " + hostid + " *";
-            text += (billing.Default) ? " `(используется дефолтная схема)`" : "" ;
-            text += "\n`Примечание`:";
-            text += "\nExtraOrder, // В стоимость заказа дополнительно будет включаться комиссия ПС";
-            text += "\nIncludedInHostFee, // Величина ПС включена в комиссию компании";
-            text += "\nExtraHostFee, // Компания дополнительно оплачивает комиссию ПС, т.е. помимо указанной fee с компании удерживается еще и сумма ПС";
-            text += "\nExtraOrderWithHostFee // Пользователь оплачивает комиссию организатора (идет в нашу прибыль) + комиссию ПС. С компании дополнительно ничего не удерживается";
+            text += (billing.Default) ? " `(используется дефолтная схема)`" : "" ;           
             
             attachments = new List<Attachments>();
         }
 
         public void PrepareSlackResponse(Billing bilObject)
         {
-            
+            string ExtraOrderMention = "В стоимость заказа дополнительно будет включаться комиссия ПС";
+            string IncludedInHostFeeMention = "Величина ПС включена в комиссию компании";
+            string ExtraHostFeeMention = "Компания дополнительно оплачивает комиссию ПС, т.е. помимо указанной fee с компании удерживается еще и сумма ПС";
+            string ExtraOrderWithHostFeeMention = "Пользователь оплачивает комиссию организатора (идет в нашу прибыль) + комиссию ПС. С компании дополнительно ничего не удерживается";
+
             foreach (var channel in bilObject.Channel)
             {                
                 string resText = "";
                
                 foreach (var pt in channel.Payment)
                 {
+
                     resText = "*Комиссия ПС = *" + pt.ps;
-                    pt.fee = pt.fee.Contains("%") ? pt.fee : feePercent;
+                    pt.fee = pt.fee.Contains("%") ? pt.fee : 
+                                pt.fee.Contains("*") ? (decimal.Parse(pt.fee.Replace("*",""), CultureInfo.InvariantCulture) * feePercent).ToString("0.00") : pt.fee;
                     resText += "\n*Комиссия с орга* = " + pt.fee;
-                    resText += "\n*Комиссия на ком* = " + pt.psPayMethod;
+                    resText += "\n*Описание комиссии:* ";
+                   
+                    switch (pt.psPayMethod)
+                    {
+                        case "ExtraOrder":
+                            resText += ExtraOrderMention;
+                            break;
+                        case "IncludedInHostFee":
+                            resText += IncludedInHostFeeMention;
+                            break;
+                        case "ExtraHostFee":
+                            resText += ExtraHostFeeMention;
+                            break;
+                        case "ExtraOrderWithHostFee":
+                            resText += ExtraOrderWithHostFeeMention;
+                            break;
+
+                    }
                 }
+                
+                string[] arrChannel = channel.Name.Split(',');   
+
+                for (int i = 0; i < arrChannel.Length; i++)
+                {
+                    switch (arrChannel[i].Trim())
+                    {
+                        case "RadarioWebSite":
+                            arrChannel[i] = "Сайт Радарио";
+                            break;
+                        case "MobileApp":
+                            arrChannel[i] = "Мобильная версия Радарио";
+                            break;
+                        case "FiveMinutesSite":
+                            arrChannel[i] = "Сайт пятиминутка";
+                            break;
+                        case "MobileWidget":
+                            arrChannel[i] = "Мобильный виджет";
+                            break;
+                        case "Widget":
+                            arrChannel[i] = "Виджет на сайте";
+                            break;
+                        case "VkApp":
+                            arrChannel[i] = "Вконтакте";
+                            break;
+                        case "FbApp":
+                            arrChannel[i] = "Фейсбук";
+                            break;
+                        case "OkApp":
+                            arrChannel[i] = "Одноклассники";
+                            break;
+                        case "BookingOffice":
+                            arrChannel[i] = "Касса";
+                            break;
+                        case "TicketDesk":
+                            arrChannel[i] = "Билетный стол";
+                            break;
+                        case "CompanyContractor":
+                            arrChannel[i] = "Контрагенты";
+                            break;
+                        case "Delivery":
+                            arrChannel[i] = "Доставка";
+                            break;
+                        case "Api":
+                            arrChannel[i] = "API";
+                            break;
+                        default:                            
+                            break;
+                    }
+                }            
+                
+
                 attachments.Add(new Attachments {
-                    pretext = "Каналы: " + channel.Name,
+                    pretext = "Каналы: " + string.Join(", ", arrChannel),
                     color = "#ff0000",
                     text = resText
                 });

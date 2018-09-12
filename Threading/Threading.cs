@@ -47,18 +47,28 @@ namespace Threading
 
     public class BillingSchemeReader
     {
-        public static async Task<string> ReadDataAsync(string hostid, XMLBilling billing)
+        public static async Task<string> ReadDataAsync(string text, XMLBilling billing)
         {
+            int hostid;
+
+            if (!int.TryParse(text, out hostid))
+            {
+                return "Идентификатор хоста должен быть числом";
+            }
+
             string connectionString = @"Data Source=DESKTOP-54SB01U;Initial Catalog=Radario;Integrated Security=True";
                                 
             string strBilling = "";
-            string selBilFromCompany = "SELECT FeePercent, BillingSchemeId FROM [Company] WHERE id=" + hostid;           
+            string selBilFromCompany = "SELECT FeePercent, BillingSchemeId FROM [Company] WHERE id=@hostid";            
 
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
                 
                 SqlCommand command = new SqlCommand(selBilFromCompany, connection);
+                SqlParameter hostidParam = new SqlParameter("@hostid", hostid);
+                command.Parameters.Add(hostidParam);
+
                 SqlDataReader reader = await command.ExecuteReaderAsync();
 
                 if (reader.HasRows)
@@ -88,9 +98,12 @@ namespace Threading
                 {
                     strBilling = "SELECT data FROM [BillingScheme] WHERE GUID='" + billing.BillingSchemeId + "'";
                     billing.Default = false;
-                }                
+                    
+                }
 
                 command = new SqlCommand(strBilling, connection);
+               
+
                 reader = await command.ExecuteReaderAsync();
 
                 if (reader.HasRows)

@@ -17,7 +17,7 @@ namespace Threading.Controllers
     public class SlackController : ControllerBase
     {
 
-        // POST: api/Slack
+        // POST: api/slack
         [HttpPost]
         public async void PostGetWheather([FromForm]string text, [FromForm]string response_url)
         {
@@ -63,11 +63,11 @@ namespace Threading.Controllers
         [Route("getBilling")]
         public async void Get([FromForm]string text, [FromForm]string response_url)
         {
-            string hostid = text;
-            XMLBilling billing = new XMLBilling();
-            string xmlData = await BillingSchemeReader.ReadDataAsync(hostid, billing);
-
             var client = new HttpClient();
+            string hostid = text;
+
+            XMLBilling billing = new XMLBilling();
+            string xmlData = await BillingSchemeReader.ReadDataAsync(hostid, billing);            
 
             if (xmlData.Contains("billing"))
             {
@@ -97,7 +97,7 @@ namespace Threading.Controllers
         [HttpGet]
         [Route("get")]
         public async Task<string> GetQ([FromQuery]string hostid)
-        {
+        {            
             XMLBilling billing = new XMLBilling();
             string xmlData = await BillingSchemeReader.ReadDataAsync(hostid, billing);
 
